@@ -103,5 +103,5 @@ ENV PYTHONWARNINGS ignore
 RUN ldconfig
 
 # and add it as an entrypoint
-ENTRYPOINT ["ndmg_bids"]
+# ENTRYPOINT ["ndmg_bids"]
 ENTRYPOINT ["pytest"]
