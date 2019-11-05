@@ -22,6 +22,8 @@ from dipy.align.transforms import AffineTransform3D
 from dipy.align.imwarp import SymmetricDiffeomorphicRegistration
 from dipy.align.metrics import CCMetric
 from dipy.viz import regtools
+from dipy.align.imaffine import AffineMap
+from dipy.align.imaffine import transform_centers_of_mass
 
 # ndmg imports
 from ndmg.utils import gen_utils
@@ -391,28 +393,116 @@ def align(
         angle in degrees, by default None
     """
 
-    cmd = "flirt -in {} -ref {}".format(inp, ref)
-    if xfm is not None:
-        cmd += " -omat {}".format(xfm)
-    if out is not None:
-        cmd += " -out {}".format(out)
-    if dof is not None:
-        cmd += " -dof {}".format(dof)
-    if bins is not None:
-        cmd += " -bins {}".format(bins)
-    if interp is not None:
-        cmd += " -interp {}".format(interp)
-    if cost is not None:
-        cmd += " -cost {}".format(cost)
-    if searchrad is not None:
-        cmd += " -searchrx -180 180 -searchry -180 180 " + "-searchrz -180 180"
-    if sch is not None:
-        cmd += " -schedule {}".format(sch)
-    if wmseg is not None:
-        cmd += " -wmseg {}".format(wmseg)
-    if init is not None:
-        cmd += " -init {}".format(init)
-    os.system(cmd)
+    # cmd = "flirt -in {} -ref {}".format(inp, ref)
+    # if xfm is not None:
+    #     cmd += " -omat {}".format(xfm)
+    # if out is not None:
+    #     cmd += " -out {}".format(out)
+    # if dof is not None:
+    #     cmd += " -dof {}".format(dof)
+    # if bins is not None:
+    #     cmd += " -bins {}".format(bins)
+    # if interp is not None:
+    #     cmd += " -interp {}".format(interp)
+    # if cost is not None:
+    #     cmd += " -cost {}".format(cost)
+    # if searchrad is not None:
+    #     cmd += " -searchrx -180 180 -searchry -180 180 " + "-searchrz -180 180"
+    # if sch is not None:
+    #     cmd += " -schedule {}".format(sch)
+    # if wmseg is not None:
+    #     cmd += " -wmseg {}".format(wmseg)
+    # if init is not None:
+    #     cmd += " -init {}".format(init)
+    # os.system(cmd)
+    if cost == 'bbr':
+        cmd = "flirt -in {} -ref {}".format(inp, ref)
+        if xfm is not None:
+            cmd += " -omat {}".format(xfm)
+        if out is not None:
+            cmd += " -out {}".format(out)
+        if dof is not None:
+            cmd += " -dof {}".format(dof)
+        if bins is not None:
+            cmd += " -bins {}".format(bins)
+        if interp is not None:
+            cmd += " -interp {}".format(interp)
+        if cost is not None:
+            cmd += " -cost {}".format(cost)
+        if searchrad is not None:
+            cmd += " -searchrx -180 180 -searchry -180 180 " + "-searchrz -180 180"
+        if sch is not None:
+            cmd += " -schedule {}".format(sch)
+        if wmseg is not None:
+            cmd += " -wmseg {}".format(wmseg)
+        if init is not None:
+            cmd += " -init {}".format(init)
+        os.system(cmd)
+    elif cost == "mutualinfo" :
+        img_inp = nib.load(inp)
+        img_ref = nib.load(ref)
+        img_inp_arr = img_inp.get_data()
+        img_ref_arr = img_ref.get_data()
+        identity = np.eye(4)
+        affine_map = AffineMap(identity, img_ref_arr.shape, img_ref.affine, img_inp_arr.shape, img_inp.affine)
+        if img_inp_arr.ndim > 3:
+            cmd = "flirt -in {} -ref {}".format(inp, ref)
+            if xfm is not None:
+                cmd += " -omat {}".format(xfm)
+            if out is not None:
+                cmd += " -out {}".format(out)
+            if dof is not None:
+                cmd += " -dof {}".format(dof)
+            if bins is not None:
+                cmd += " -bins {}".format(bins)
+            if interp is not None:
+                cmd += " -interp {}".format(interp)
+            if cost is not None:
+                cmd += " -cost {}".format(cost)
+            if searchrad is not None:
+                cmd += " -searchrx -180 180 -searchry -180 180 " + "-searchrz -180 180"
+            if sch is not None:
+                cmd += " -schedule {}".format(sch)
+            if wmseg is not None:
+                cmd += " -wmseg {}".format(wmseg)
+            if init is not None:
+                cmd += " -init {}".format(init)
+            os.system(cmd)
+        else:
+            sam_1 = affine_map.transform(img_inp_arr)
+            c_of_mass = transform_centers_of_mass(img_ref_arr, img_ref.affine, img_inp_arr, img_inp.affine)
+            sam_2 = c_of_mass.transform(img_inp_arr)
+            nbins = 32
+            sampling_prop = None
+            metric = MutualInformationMetric(nbins, sampling_prop)
+            level_iters = [10000, 1000, 100]
+            sigmas = [3.0, 1.0, 0.0]
+            factors = [4, 2, 1]
+            affreg = AffineRegistration(metric=metric, level_iters=level_iters, sigmas=sigmas, factors=factors)
+            transform = TranslationTransform3D()
+            params0 = None
+            starting_affine = c_of_mass.affine
+            translation = affreg.optimize(img_ref_arr, img_inp_arr, transform, params0, img_ref.affine, img_inp.affine, starting_affine=starting_affine)
+            transformed = translation.transform(img_inp_arr)
+            final_affine = translation.affine
+            img_out = nib.nifti1.Nifti1Image(transformed, final_affine, img_inp.header)
+            if xfm is not None:
+                np.savetxt(xfm, final_affine)
+            if out is not None:
+                nib.save(img_out, out)
+    else:
+        img_inp = nib.load(inp)
+        img_ref = nib.load(ref)
+        img_inp_arr = img_inp.get_data()
+        img_ref_arr = img_ref.get_data()
+        if init is not None:
+            identity = np.array(nib.load(init))
+        affine_map = AffineMap(identity, img_ref_arr.shape, img_ref.affine, img_inp_arr.shape, img_inp.affine)
+        sam_res = affine_map.transform(img_inp_arr)
+        img_out = nib.nifti1.Nifti1Image(sam_res, final_affine, img_inp.header)
+        if out is not None:
+            nib.save(img_out, out)
+    pass
 
 
 @check_exists(0, 1, 2)
