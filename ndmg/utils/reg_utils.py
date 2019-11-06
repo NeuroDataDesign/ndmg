@@ -211,10 +211,22 @@ def resample_fsl(base, res, goal_res, interp="spline"):
             - the interpolation strategy to use.
     """
     # resample using an isometric transform in fsl
-    cmd = "flirt -in {} -ref {} -out {} -applyisoxfm {} -interp {}"
-    cmd = cmd.format(base, base, res, goal_res, interp)
-    gen_utils.execute_cmd(cmd, verb=True)
-    pass
+    # cmd = "flirt -in {} -ref {} -out {} -applyisoxfm {} -interp {}"
+    # cmd = cmd.format(base, base, res, goal_res, interp)
+    # gen_utils.execute_cmd(cmd, verb=True)
+    # pass
+
+    img_inp = nib.load(base)
+    img_ref = nib.load(base)
+    img_inp_arr = img_inp.get_data()
+    img_ref_arr = img_ref.get_data()
+    if goal_res is not None:
+        identity = np.array(np.loadtxt(goal_res))
+    affine_map = AffineMap(identity, img_ref_arr.shape, img_ref.affine, img_inp_arr.shape, img_inp.affine)
+    sam_res = affine_map.transform(img_inp_arr)
+    img_out = nib.nifti1.Nifti1Image(sam_res, img_inp.affine, img_inp.header)
+    if res is not None:
+        nib.save(img_out, res)
 
 
 def skullstrip_check(dmrireg, labels, namer, vox_size, reg_style):
@@ -485,7 +497,7 @@ def align(
             translation = affreg.optimize(img_ref_arr, img_inp_arr, transform, params0, img_ref.affine, img_inp.affine, starting_affine=starting_affine)
             transformed = translation.transform(img_inp_arr)
             final_affine = translation.affine
-            img_out = nib.nifti1.Nifti1Image(transformed, final_affine, img_inp.header)
+            img_out = nib.nifti1.Nifti1Image(transformed, img_inp.affine, img_inp.header)
             if xfm is not None:
                 np.savetxt(xfm, final_affine)
             if out is not None:
@@ -499,7 +511,7 @@ def align(
             identity = np.array(nib.load(init))
         affine_map = AffineMap(identity, img_ref_arr.shape, img_ref.affine, img_inp_arr.shape, img_inp.affine)
         sam_res = affine_map.transform(img_inp_arr)
-        img_out = nib.nifti1.Nifti1Image(sam_res, final_affine, img_inp.header)
+        img_out = nib.nifti1.Nifti1Image(sam_res, img_inp.affine, img_inp.header)
         if out is not None:
             nib.save(img_out, out)
     pass
@@ -570,9 +582,24 @@ def applyxfm(ref, inp, xfm, aligned, interp="trilinear", dof=6):
         degrees of freedom for the alignment, by default 6
     """
 
-    cmd = "flirt -in {} -ref {} -out {} -init {} -interp {} -dof {} -applyxfm"
-    cmd = cmd.format(inp, ref, aligned, xfm, interp, dof)
-    os.system(cmd)
+    # cmd = "flirt -in {} -ref {} -out {} -init {} -interp {} -dof {} -applyxfm"
+    # cmd = cmd.format(inp, ref, aligned, xfm, interp, dof)
+    # os.system(cmd)
+
+    img_inp = nib.load(inp)
+    img_ref = nib.load(ref)
+    img_inp_arr = img_inp.get_data()
+    img_ref_arr = img_ref.get_data()
+    if xfm is not None:
+        identity = np.array(np.loadtxt(xfm))
+    affine_map = AffineMap(identity, img_ref_arr.shape, img_ref.affine, img_inp_arr.shape, img_inp.affine)
+    sam_res = affine_map.transform(img_inp_arr)
+    img_out = nib.nifti1.Nifti1Image(sam_res, img_inp.affine, img_inp.header)
+    if aligned is not None:
+        nib.save(img_out, aligned)
+    pass
+
+
 
 
 @check_exists(0, 1)
