@@ -23,6 +23,8 @@ from dipy.tracking import utils
 # ndmg imports
 from ndmg.utils import gen_utils
 from ndmg.utils import reg_utils
+from ndmg.stats import qa_registration
+from ndmg.stats import qa_reg
 
 
 def direct_streamline_norm(streams, fa_path, namer):
@@ -428,6 +430,8 @@ class DmriReg(object):
                 out=self.t1_aligned_mni,
                 sch=None,
             )
+        qa_registration.qa_registration(self.t1_aligned_mni, self.input_mni, self.namer.dirs['qa']['reg'])
+        qa_reg.reg_mri_pngs(self.t1_aligned_mni, self.input_mni, self.namer.dirs['qa']['reg'])
 
         # Align T1w-->DWI
         reg_utils.align(
@@ -504,7 +508,8 @@ class DmriReg(object):
                 searchrad=True,
                 sch=None,
             )
-
+        qa_registration.qa_registration(self.t1w2dwi, self.nodif_B0, self.namer.dirs['qa']['reg'])
+        qa_reg.reg_mri_pngs(self.t1w2dwi, self.nodif_B0, self.namer.dirs['qa']['reg'])
         return
 
     def atlas2t1w2dwi_align(self, atlas, dsn=True):
@@ -676,6 +681,7 @@ class DmriReg(object):
                 ),
                 self.dwi_aligned_atlas,
             )
+            qa_registration.qa_registration(self.dwi_aligned_atlas, self.nodif_B0, self.namer.dirs['qa']['reg'])
             return self.dwi_aligned_atlas
         else:
             nib.save(
@@ -686,6 +692,7 @@ class DmriReg(object):
                 ),
                 self.aligned_atlas_t1mni,
             )
+            qa_registration.qa_registration(self.aligned_atlas_t1mni, self.t1_aligned_mni, self.namer.dirs['qa']['reg'])
             return self.aligned_atlas_t1mni
 
     def tissue2dwi_align(self):

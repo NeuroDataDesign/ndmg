@@ -92,7 +92,7 @@ def opaque_colorscale(basemap, reference, vmin=None, vmax=None, alpha=1):
 
 
 def plot_brain(brain, minthr=2, maxthr=95, edge=False):
-    brain = mgu.get_braindata(brain)
+    brain = mgu.gen_utils.get_braindata(brain)
     cmap = LinearSegmentedColormap.from_list("mycmap2", ["black", "green"])
     plt.rcParams.update({"axes.labelsize": "x-large", "axes.titlesize": "x-large"})
     fbr = plt.figure()
@@ -155,8 +155,8 @@ def plot_overlays(atlas, b0, cmaps=None, minthr=2, maxthr=95, edge=False):
     plt.rcParams.update({"axes.labelsize": "x-large", "axes.titlesize": "x-large"})
     foverlay = plt.figure()
 
-    atlas = mgu.get_braindata(atlas)
-    b0 = mgu.get_braindata(b0)
+    atlas = mgu.gen_utils.get_braindata(atlas)
+    b0 = mgu.gen_utils.get_braindata(b0)
     if atlas.shape != b0.shape:
         raise ValueError("Brains are not the same shape.")
     if cmaps is None:
